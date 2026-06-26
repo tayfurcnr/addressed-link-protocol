@@ -66,7 +66,7 @@ int alp_stream_parser_append(
             return 0;
         }
 
-        uint16_t payload_length = (uint16_t)(((uint16_t)parser->buffer[10] << 8) | parser->buffer[11]);
+        uint16_t payload_length = (uint16_t)(((uint16_t)parser->buffer[11] << 8) | parser->buffer[12]);
         size_t frame_size = ALP_HEADER_SIZE + payload_length + ALP_CRC_SIZE;
 
         if (frame_size > parser->capacity) {

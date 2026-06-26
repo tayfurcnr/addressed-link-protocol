@@ -44,7 +44,7 @@ except ImportError:  # pragma: no cover - protobuf may be optional in some envir
     Message = None
 
 
-def config(*, src_id: int, version: int = 1, default_flags: int = 0) -> ALPConfig:
+def config(*, src_id: int, version: int = 2, default_flags: int = 0) -> ALPConfig:
     """Short helper for building an ALPConfig instance."""
 
     return ALPConfig(

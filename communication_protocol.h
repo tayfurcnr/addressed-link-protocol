@@ -9,7 +9,7 @@
 #define ALP_BROADCAST_ID 0xFFFF
 #define ALP_PROTOCOL_SHORT_NAME "ALP"
 #define ALP_PROTOCOL_NAME "Addressed Link Protocol"
-#define ALP_HEADER_SIZE 12
+#define ALP_HEADER_SIZE 13
 #define ALP_CRC_SIZE 2
 #define ALP_MIN_PACKET_SIZE (ALP_HEADER_SIZE + ALP_CRC_SIZE)
 #define ALP_MAX_PAYLOAD_SIZE 65535U
@@ -35,7 +35,7 @@ typedef struct {
     uint8_t version;
     uint16_t src_id;
     uint16_t dst_id;
-    uint8_t msg_id;
+    uint16_t msg_id;
     uint8_t seq;
     uint8_t flags;
     uint16_t payload_length;
@@ -48,7 +48,7 @@ void alp_config_init(alp_config_t *config, uint16_t src_id, uint8_t version, uin
 alp_packet_t *alp_config_create_packet(
     const alp_config_t *config,
     uint16_t dst_id,
-    uint8_t msg_id,
+    uint16_t msg_id,
     uint8_t seq,
     const uint8_t *payload,
     uint16_t payload_length,
@@ -59,7 +59,7 @@ alp_packet_t *alp_packet_create(
     uint8_t version,
     uint16_t src_id,
     uint16_t dst_id,
-    uint8_t msg_id,
+    uint16_t msg_id,
     uint8_t seq,
     uint8_t flags,
     const uint8_t *payload,

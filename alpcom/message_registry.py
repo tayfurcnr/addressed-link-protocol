@@ -7,7 +7,7 @@ from google.protobuf.message import Message
 from generated.python.example_pb2 import ExamplePayload
 
 MESSAGE_TYPES = {
-    0x40: ExamplePayload,
+    0x0040: ExamplePayload,
 }
 
 def get_message_type(msg_id: int):

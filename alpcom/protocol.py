@@ -5,7 +5,7 @@ Frame format:
     SOF1 | SOF2 | VERSION | SRC_ID | DST_ID | MSG_ID | SEQ | FLAGS | PAYLOAD_LENGTH | PAYLOAD | CRC16
 
 Byte layout:
-    1    |  1   |    1    |   2    |   2    |   1    |  1  |   1   |       2        |   N     |   2
+    1    |  1   |    1    |   2    |   2    |   2    |  1  |   1   |       2        |   N     |   2
 
 Rules:
     - Multi-byte fields use big-endian order.
@@ -66,7 +66,7 @@ class ALPConfig:
     """Reusable ALP sender configuration."""
 
     src_id: int
-    version: int = 1
+    version: int = 2
     default_flags: int = 0
 
     def __post_init__(self) -> None:
@@ -122,6 +122,19 @@ class ALPStreamParser:
     def reset(self) -> None:
         self._buffer.clear()
 
+    def _retain_possible_sof_prefix(self) -> None:
+        max_prefix = len(CommunicationPacket.SOF) - 1
+        keep = 0
+        for prefix_length in range(min(len(self._buffer), max_prefix), 0, -1):
+            if self._buffer[-prefix_length:] == CommunicationPacket.SOF[:prefix_length]:
+                keep = prefix_length
+                break
+
+        if keep == 0:
+            self._buffer.clear()
+        else:
+            del self._buffer[:-keep]
+
     def append(self, data: bytes) -> list["CommunicationPacket"]:
         if not data:
             return []
@@ -132,7 +145,7 @@ class ALPStreamParser:
         while True:
             sof_index = self._buffer.find(CommunicationPacket.SOF)
             if sof_index < 0:
-                self._buffer.clear()
+                self._retain_possible_sof_prefix()
                 break
 
             if sof_index > 0:
@@ -169,7 +182,7 @@ class CommunicationPacket:
     Binary packet model.
 
     Header bytes:
-        SOF1(1) + SOF2(1) + VERSION(1) + SRC_ID(2) + DST_ID(2) + MSG_ID(1) + SEQ(1) + FLAGS(1) + PAYLOAD_LENGTH(2)
+        SOF1(1) + SOF2(1) + VERSION(1) + SRC_ID(2) + DST_ID(2) + MSG_ID(2) + SEQ(1) + FLAGS(1) + PAYLOAD_LENGTH(2)
     """
 
     version: int
@@ -184,7 +197,7 @@ class CommunicationPacket:
     BROADCAST_ID = 0xFFFF
     PROTOCOL_NAME = "Addressed Link Protocol"
     PROTOCOL_SHORT_NAME = "ALP"
-    HEADER_FORMAT = "!2sBHHBBBH"
+    HEADER_FORMAT = "!2sBHHHBBH"
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     CRC_SIZE = 2
     MIN_PACKET_SIZE = HEADER_SIZE + CRC_SIZE
@@ -200,7 +213,7 @@ class CommunicationPacket:
         self.version &= 0xFF
         self.src_id &= 0xFFFF
         self.dst_id &= 0xFFFF
-        self.msg_id &= 0xFF
+        self.msg_id &= 0xFFFF
         self.seq &= 0xFF
         self.flags &= 0xFF
 
@@ -322,7 +335,7 @@ def describe_protocol() -> str:
             "  VERSION        : 1 byte",
             "  SRC_ID         : 2 bytes (big-endian)",
             "  DST_ID         : 2 bytes (big-endian)",
-            "  MSG_ID         : 1 byte",
+            "  MSG_ID         : 2 bytes (big-endian)",
             "  SEQ            : 1 byte",
             "  FLAGS          : 1 byte",
             "  PAYLOAD_LENGTH : 2 bytes (big-endian)",
@@ -347,10 +360,10 @@ def describe_protocol() -> str:
 
 def build_demo_packet() -> CommunicationPacket:
     return CommunicationPacket(
-        version=1,
+        version=2,
         src_id=0x1201,
         dst_id=0x3402,
-        msg_id=0x31,
+        msg_id=0x0031,
         seq=0x05,
         flags=int(PacketFlags.ACK_REQUIRED | PacketFlags.PRIORITY),
         payload=b"TEMP=24.6C",
@@ -369,10 +382,10 @@ def build_structured_demo_packet() -> CommunicationPacket | None:
     )
 
     return CommunicationPacket.pack_message(
-        version=1,
+        version=2,
         src_id=0x1201,
         dst_id=CommunicationPacket.BROADCAST_ID,
-        msg_id=0x40,
+        msg_id=0x0040,
         seq=0x06,
         flags=int(PacketFlags.PRIORITY),
         message=message,
@@ -398,7 +411,7 @@ def main() -> None:
     print(f"  version          : {parsed.version}")
     print(f"  src_id           : 0x{parsed.src_id:04X}")
     print(f"  dst_id           : 0x{parsed.dst_id:04X}")
-    print(f"  msg_id           : 0x{parsed.msg_id:02X}")
+    print(f"  msg_id           : 0x{parsed.msg_id:04X}")
     print(f"  seq              : 0x{parsed.seq:02X}")
     print(f"  flags            : 0x{parsed.flags:02X}")
     print(f"  is_broadcast     : {parsed.is_broadcast()}")
@@ -409,7 +422,7 @@ def main() -> None:
     if structured_packet is not None:
         print()
         print("Structured payload demo:")
-        print(f"  msg_id           : 0x{structured_packet.msg_id:02X}")
+        print(f"  msg_id           : 0x{structured_packet.msg_id:04X}")
         print(f"  dst_id           : 0x{structured_packet.dst_id:04X}")
         print(f"  is_broadcast     : {structured_packet.is_broadcast()}")
         print(f"  payload_length   : {structured_packet.payload_length}")

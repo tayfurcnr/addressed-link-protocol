@@ -14,16 +14,15 @@ static void alp_packet_build_header(const alp_packet_t *packet, uint8_t header[A
     header[4] = (uint8_t)(packet->src_id & 0xFF);
     header[5] = (uint8_t)((packet->dst_id >> 8) & 0xFF);
     header[6] = (uint8_t)(packet->dst_id & 0xFF);
-    header[7] = packet->msg_id;
-    header[8] = packet->seq;
-    header[9] = packet->flags;
-    header[10] = (uint8_t)((packet->payload_length >> 8) & 0xFF);
-    header[11] = (uint8_t)(packet->payload_length & 0xFF);
+    header[7] = (uint8_t)((packet->msg_id >> 8) & 0xFF);
+    header[8] = (uint8_t)(packet->msg_id & 0xFF);
+    header[9] = packet->seq;
+    header[10] = packet->flags;
+    header[11] = (uint8_t)((packet->payload_length >> 8) & 0xFF);
+    header[12] = (uint8_t)(packet->payload_length & 0xFF);
 }
 
-uint16_t alp_crc16_calculate(const uint8_t *data, size_t length) {
-    uint16_t crc = ALP_CRC16_INITIAL;
-
+static uint16_t alp_crc16_update(uint16_t crc, const uint8_t *data, size_t length) {
     for (size_t i = 0; i < length; ++i) {
         crc ^= (uint16_t)(data[i] << 8);
         for (int bit = 0; bit < 8; ++bit) {
@@ -38,6 +37,10 @@ uint16_t alp_crc16_calculate(const uint8_t *data, size_t length) {
     return crc;
 }
 
+uint16_t alp_crc16_calculate(const uint8_t *data, size_t length) {
+    return alp_crc16_update(ALP_CRC16_INITIAL, data, length);
+}
+
 void alp_config_init(alp_config_t *config, uint16_t src_id, uint8_t version, uint8_t default_flags) {
     config->src_id = src_id;
     config->version = version;
@@ -47,7 +50,7 @@ void alp_config_init(alp_config_t *config, uint16_t src_id, uint8_t version, uin
 alp_packet_t *alp_config_create_packet(
     const alp_config_t *config,
     uint16_t dst_id,
-    uint8_t msg_id,
+    uint16_t msg_id,
     uint8_t seq,
     const uint8_t *payload,
     uint16_t payload_length,
@@ -70,7 +73,7 @@ alp_packet_t *alp_packet_create(
     uint8_t version,
     uint16_t src_id,
     uint16_t dst_id,
-    uint8_t msg_id,
+    uint16_t msg_id,
     uint8_t seq,
     uint8_t flags,
     const uint8_t *payload,
@@ -124,19 +127,10 @@ size_t alp_packet_total_size(const alp_packet_t *packet) {
 uint16_t alp_packet_calculate_crc(const alp_packet_t *packet) {
     uint8_t header[ALP_HEADER_SIZE];
     alp_packet_build_header(packet, header);
-    size_t crc_length = (ALP_HEADER_SIZE - 2U) + packet->payload_length;
-    uint8_t *crc_buffer = (uint8_t *)malloc(crc_length);
-    if (crc_buffer == NULL) {
-        return 0;
-    }
-
-    memcpy(crc_buffer, &header[2], ALP_HEADER_SIZE - 2U);
+    uint16_t crc = alp_crc16_update(ALP_CRC16_INITIAL, &header[2], ALP_HEADER_SIZE - 2U);
     if (packet->payload_length > 0U) {
-        memcpy(crc_buffer + (ALP_HEADER_SIZE - 2U), packet->payload, packet->payload_length);
+        crc = alp_crc16_update(crc, packet->payload, packet->payload_length);
     }
-
-    uint16_t crc = alp_crc16_calculate(crc_buffer, crc_length);
-    free(crc_buffer);
     return crc;
 }
 
@@ -156,10 +150,6 @@ int alp_packet_serialize(const alp_packet_t *packet, uint8_t *buffer, size_t buf
     }
 
     uint16_t crc = alp_packet_calculate_crc(packet);
-    if (packet->payload_length > 0U && crc == 0U) {
-        ALP_LOG_ERROR("crc buffer allocation failed\n");
-        return -1;
-    }
 
     buffer[ALP_HEADER_SIZE + packet->payload_length] = (uint8_t)((crc >> 8) & 0xFF);
     buffer[ALP_HEADER_SIZE + packet->payload_length + 1U] = (uint8_t)(crc & 0xFF);
@@ -182,7 +172,7 @@ int alp_packet_deserialize(
         return -1;
     }
 
-    uint16_t payload_length = (uint16_t)(((uint16_t)buffer[10] << 8) | buffer[11]);
+    uint16_t payload_length = (uint16_t)(((uint16_t)buffer[11] << 8) | buffer[12]);
     size_t expected_size = ALP_HEADER_SIZE + payload_length + ALP_CRC_SIZE;
     if (buffer_size != expected_size) {
         ALP_LOG_ERROR("size mismatch: expected %zu, got %zu\n", expected_size, buffer_size);
@@ -203,9 +193,9 @@ int alp_packet_deserialize(
         buffer[2],
         (uint16_t)(((uint16_t)buffer[3] << 8) | buffer[4]),
         (uint16_t)(((uint16_t)buffer[5] << 8) | buffer[6]),
-        buffer[7],
-        buffer[8],
+        (uint16_t)(((uint16_t)buffer[7] << 8) | buffer[8]),
         buffer[9],
+        buffer[10],
         payload_ptr,
         payload_length
     );
@@ -240,7 +230,7 @@ static void print_protocol_description(void) {
     printf("  VERSION        : 1 byte\n");
     printf("  SRC_ID         : 2 bytes (big-endian)\n");
     printf("  DST_ID         : 2 bytes (big-endian)\n");
-    printf("  MSG_ID         : 1 byte\n");
+    printf("  MSG_ID         : 2 bytes (big-endian)\n");
     printf("  SEQ            : 1 byte\n");
     printf("  FLAGS          : 1 byte\n");
     printf("  PAYLOAD_LENGTH : 2 bytes (big-endian)\n");
@@ -263,13 +253,13 @@ int main(void) {
     print_protocol_description();
 
     alp_config_t config;
-    alp_config_init(&config, 0x1201, 1, ALP_FLAG_PRIORITY);
+    alp_config_init(&config, 0x1201, 2, ALP_FLAG_PRIORITY);
 
     const uint8_t payload[] = "TEMP=24.6C";
     alp_packet_t *packet = alp_config_create_packet(
         &config,
         0x3402,
-        0x31,
+        0x0031,
         0x05,
         payload,
         (uint16_t)(sizeof(payload) - 1U),
@@ -307,7 +297,7 @@ int main(void) {
     printf("  version        : %u\n", parsed->version);
     printf("  src_id         : 0x%04X\n", parsed->src_id);
     printf("  dst_id         : 0x%04X\n", parsed->dst_id);
-    printf("  msg_id         : 0x%02X\n", parsed->msg_id);
+    printf("  msg_id         : 0x%04X\n", parsed->msg_id);
     printf("  seq            : 0x%02X\n", parsed->seq);
     printf("  flags          : 0x%02X\n", parsed->flags);
     printf("  is_broadcast   : %s\n", parsed->dst_id == ALP_BROADCAST_ID ? "true" : "false");

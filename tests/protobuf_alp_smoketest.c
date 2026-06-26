@@ -14,10 +14,10 @@ int main(void) {
     }
 
     alp_packet_t *packet = alp_packet_create(
-        1,
+        2,
         0x1201,
         ALP_BROADCAST_ID,
-        0x40,
+        0x0040,
         0x06,
         ALP_FLAG_PRIORITY,
         payload_buffer,

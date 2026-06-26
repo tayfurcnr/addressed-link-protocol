@@ -4,8 +4,8 @@ from enum import IntEnum
 
 
 class ALPMessageID(IntEnum):
-    EXAMPLEPAYLOAD = 0x40
+    EXAMPLEPAYLOAD = 0x0040
 
 MESSAGE_NAMES = {
-    0x40: "ExamplePayload",
+    0x0040: "ExamplePayload",
 }

@@ -15,14 +15,19 @@ MESSAGE_RE = re.compile(r"^\s*message\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{")
 
 def collect_message_mappings() -> list[tuple[int, str, str]]:
     mappings: list[tuple[int, str, str]] = []
+    seen_msg_ids: dict[int, tuple[Path, str]] = {}
 
     for proto_path in sorted(PROTO_DIR.glob("*.proto")):
         pending_msg_id: int | None = None
 
-        for line in proto_path.read_text(encoding="utf-8").splitlines():
+        for line_number, line in enumerate(proto_path.read_text(encoding="utf-8").splitlines(), start=1):
             msg_id_match = MSG_ID_RE.match(line)
             if msg_id_match:
                 pending_msg_id = int(msg_id_match.group(1), 0)
+                if not 0 <= pending_msg_id <= 0xFFFF:
+                    raise ValueError(
+                        f"{proto_path}:{line_number}: ALP_MSG_ID {pending_msg_id} is out of range; expected 0..65535"
+                    )
                 continue
 
             message_match = MESSAGE_RE.match(line)
@@ -34,6 +39,15 @@ def collect_message_mappings() -> list[tuple[int, str, str]]:
 
             message_name = message_match.group(1)
             module_name = f"{proto_path.stem}_pb2"
+            previous = seen_msg_ids.get(pending_msg_id)
+            if previous is not None:
+                previous_path, previous_name = previous
+                raise ValueError(
+                    f"duplicate ALP_MSG_ID 0x{pending_msg_id:04X}: "
+                    f"{previous_name} in {previous_path} and {message_name} in {proto_path}"
+                )
+
+            seen_msg_ids[pending_msg_id] = (proto_path, message_name)
             mappings.append((pending_msg_id, module_name, message_name))
             pending_msg_id = None
 
@@ -46,7 +60,7 @@ def build_registry_module(mappings: list[tuple[int, str, str]]) -> str:
 
     for msg_id, module_name, message_name in mappings:
         import_lines.append(f"from generated.python.{module_name} import {message_name}")
-        registry_lines.append(f"    0x{msg_id:02X}: {message_name},")
+        registry_lines.append(f"    0x{msg_id:04X}: {message_name},")
 
     imports = "\n".join(import_lines) if import_lines else ""
     registry_body = "\n".join(registry_lines) if registry_lines else ""
@@ -93,7 +107,7 @@ def build_python_enum_module(mappings: list[tuple[int, str, str]]) -> str:
 
     if mappings:
         for msg_id, _, message_name in mappings:
-            enum_lines.append(f"    {message_name.upper()} = 0x{msg_id:02X}")
+            enum_lines.append(f"    {message_name.upper()} = 0x{msg_id:04X}")
     else:
         enum_lines.append("    NONE = 0x00")
 
@@ -105,7 +119,7 @@ def build_python_enum_module(mappings: list[tuple[int, str, str]]) -> str:
     )
 
     for msg_id, _, message_name in mappings:
-        enum_lines.append(f'    0x{msg_id:02X}: "{message_name}",')
+        enum_lines.append(f'    0x{msg_id:04X}: "{message_name}",')
 
     enum_lines.append("}")
     enum_lines.append("")
@@ -122,7 +136,7 @@ def build_c_enum_header(mappings: list[tuple[int, str, str]]) -> str:
 
     if mappings:
         for msg_id, _, message_name in mappings:
-            lines.append(f"    ALP_MSG_{message_name.upper()} = 0x{msg_id:02X},")
+            lines.append(f"    ALP_MSG_{message_name.upper()} = 0x{msg_id:04X},")
     else:
         lines.append("    ALP_MSG_NONE = 0x00,")
 

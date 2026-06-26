@@ -10,7 +10,7 @@ except ImportError:  # pragma: no cover - optional runtime dependency for serial
 
 CONFIG = alpcom.config(
     src_id=0x1201,
-    version=1,
+    version=2,
 )
 
 
@@ -61,7 +61,7 @@ def main() -> None:
     print("ALP packet:")
     print(f"  src_id       : 0x{packet.src_id:04X}")
     print(f"  dst_id       : 0x{packet.dst_id:04X}")
-    print(f"  msg_id       : 0x{packet.msg_id:02X}")
+    print(f"  msg_id       : 0x{packet.msg_id:04X}")
     print(f"  seq          : 0x{packet.seq:02X}")
     print(f"  flags        : 0x{packet.flags:02X}")
     print(f"  payload_len  : {packet.payload_length}")

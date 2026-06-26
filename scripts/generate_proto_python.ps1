@@ -35,10 +35,16 @@ Push-Location $repoRoot
 
 try {
     New-Item -ItemType Directory -Force -Path "generated/python" | Out-Null
-    python -m grpc_tools.protoc -I proto --python_out=generated/python proto/example.proto
+    $protoFiles = Get-ChildItem -Path "proto" -Filter *.proto | Sort-Object Name
+    if ($protoFiles.Count -eq 0) {
+        throw "No .proto files found under proto/"
+    }
+
+    $protoArgs = $protoFiles | ForEach-Object { "proto/$($_.Name)" }
+    python -m grpc_tools.protoc -I proto --python_out=generated/python $protoArgs
     python scripts/generate_message_registry.py
     Update-AlpcomExports
-    Write-Host "Python protobuf generated: generated/python/example_pb2.py"
+    Write-Host ("Python protobuf generated: " + (($protoFiles | ForEach-Object { $_.Name }) -join ", "))
 }
 finally {
     Pop-Location

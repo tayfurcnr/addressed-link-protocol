@@ -4,6 +4,8 @@
 
 ALP is a compact framed communication protocol designed for multi-device links. It provides explicit source and destination addressing, a deterministic binary frame layout, CRC16 protection, and optional Protobuf-based payload serialization for both Python and C workflows.
 
+For the normative wire-format reference, see [SPEC.md](SPEC.md).
+
 ## Overview
 
 ALP frame format:
@@ -15,7 +17,7 @@ SOF1 | SOF2 | VERSION | SRC_ID | DST_ID | MSG_ID | SEQ | FLAGS | PAYLOAD_LENGTH 
 Byte layout:
 
 ```text
-1    |  1   |    1    |   2    |   2    |   1    |  1  |   1   |       2        |   N     |   2
+1    |  1   |    1    |   2    |   2    |   2    |  1  |   1   |       2        |   N     |   2
 ```
 
 Protocol rules:
@@ -89,7 +91,7 @@ ALP treats the `PAYLOAD` field as an opaque byte array. This means payload conte
 Example schema:
 
 - Source: `proto/example.proto`
-- `MSG_ID` mapping is declared next to the message with `// ALP_MSG_ID: 0x40`
+- `MSG_ID` mapping is declared next to the message with `// ALP_MSG_ID: 0x0040`
 
 Python generated output:
 
@@ -204,7 +206,7 @@ import alpcom
 Reusable sender configuration:
 
 ```python
-config = alpcom.config(src_id=0x1201, version=1)
+config = alpcom.config(src_id=0x1201, version=2)
 ```
 
 Recommended packet builder for structured payloads:
@@ -256,7 +258,7 @@ Reusable sender configuration:
 
 ```c
 alp_config_t config;
-alp_config_init(&config, 0x1201, 1, ALP_FLAG_PRIORITY);
+alp_config_init(&config, 0x1201, 2, ALP_FLAG_PRIORITY);
 ```
 
 Recommended C include:

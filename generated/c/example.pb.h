@@ -15,7 +15,7 @@
  the automatic MSG_ID -> message type registry.
  If this comment is missing, the message can still be serialized manually,
  but automatic payload decoding via alpcom registry will not work.
- ALP_MSG_ID: 0x40 */
+ ALP_MSG_ID: 0x0040 */
 typedef struct _alp_ExamplePayload {
     uint32_t device_index;
     float value;
