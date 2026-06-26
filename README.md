@@ -49,11 +49,9 @@ generated/c/            Generated C protobuf files for nanopb
 alpcom/                 Installable Python package for ALP
 third_party/nanopb/     Vendored nanopb runtime for C builds
 scripts/                Build and generation scripts
+c/include/              C public headers
+c/src/                  C source implementation
 communication_protocol.py
-alp_stream_parser.h
-alp_stream_parser.c
-communication_protocol.h
-communication_protocol.c
 README.md
 ```
 
@@ -70,11 +68,11 @@ Python implementation:
 
 C implementation:
 
-- Public header: `communication_protocol.h`
-- Stream parser header: `alp_stream_parser.h`
-- File: `communication_protocol.c`
+- Public header: `c/include/communication_protocol.h`
+- Stream parser header: `c/include/alp_stream_parser.h`
+- File: `c/src/communication_protocol.c`
 - Implements the ALP frame structure and CRC validation logic
-- Generic stream parser implementation: `alp_stream_parser.c`
+- Generic stream parser implementation: `c/src/alp_stream_parser.c`
 - Prepared for Protobuf payload integration through generated nanopb output
 - Umbrella header: `alpcom/alpcom.h`
 - Nanopb runtime: `third_party/nanopb/`
@@ -316,14 +314,14 @@ The repository now includes a working nanopb-backed C smoke test path.
 ALP-only demo:
 
 ```powershell
-cmd /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul && cl /nologo /W4 /Fe:communication_protocol_test.exe communication_protocol.c'
+cmd /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul && cl /nologo /W4 /I c\include /Fe:communication_protocol_test.exe c\src\communication_protocol.c'
 .\communication_protocol_test.exe
 ```
 
 ALP + Protobuf smoke test:
 
 ```powershell
-cmd /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul && cl /nologo /W4 /DALP_NO_DEMO_MAIN /I third_party\nanopb /I generated\c /Fe:protobuf_alp_smoketest.exe tests\protobuf_alp_smoketest.c communication_protocol.c generated\c\example.pb.c third_party\nanopb\pb_common.c third_party\nanopb\pb_encode.c'
+cmd /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul && cl /nologo /W4 /DALP_NO_DEMO_MAIN /I third_party\nanopb /I generated\c /I c\include /Fe:protobuf_alp_smoketest.exe tests\protobuf_alp_smoketest.c c\src\communication_protocol.c generated\c\example.pb.c third_party\nanopb\pb_common.c third_party\nanopb\pb_encode.c'
 .\protobuf_alp_smoketest.exe
 ```
 

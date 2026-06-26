@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "communication_protocol.h"
+#include "../include/communication_protocol.h"
 
 #ifndef ALP_LOG_ERROR
 #define ALP_LOG_ERROR(...) ((void)0)

@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "alp_stream_parser.h"
+#include "../include/alp_stream_parser.h"
 
 static void alp_stream_parser_discard(alp_stream_parser_t *parser, size_t count) {
     if (count >= parser->length) {
